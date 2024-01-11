@@ -1,7 +1,7 @@
 # Define base image.
 # FROM nvidia/cudagl:11.3.1-devel
-FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
-# FROM 763104351884.dkr.ecr.us-west-2.amazonaws.com/pytorch-training:1.12.1-gpu-py38-cu113-ubuntu20.04-sagemaker
+# FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
+FROM 763104351884.dkr.ecr.us-west-2.amazonaws.com/pytorch-training:1.12.1-gpu-py38-cu113-ubuntu20.04-sagemaker
 
 # Set environment variables.
 ## Set non-interactive to prevent asking for user inputs blocking image creation.
@@ -11,7 +11,7 @@ ENV TZ=America/Vancouver
 ## CUDA architectures, required by tiny-cuda-nn.
 ENV TCNN_CUDA_ARCHITECTURES=86
 ## CUDA Home, required to find CUDA in some packages.
-ENV CUDA_HOME="/usr/local/cuda"
+# ENV CUDA_HOME="/usr/local/cuda"
 
 # Install required apt packages.
 RUN apt-get update && \
@@ -81,40 +81,34 @@ RUN apt-get update && \
 #     cd ../.. && \
 #     rm -r colmap
 
-# # Create non root user and setup environment.
-# RUN useradd -m -d /home/user -u 1000 user
-#
-# # Switch to new uer and workdir.
-# USER 1000:1000
-# WORKDIR /home/user
-#
-# # Add local user binary folder to PATH variable.
-# ENV PATH="${PATH}:/home/user/.local/bin"
+# Create non root user and setup environment.
+RUN useradd -m -d /home/user -u 1000 user
 
-# # Upgrade pip and install packages.
-RUN pip3 install --upgrade pip setuptools pathtools promise
+# Switch to new uer and workdir.
+USER 1000:1000
+WORKDIR /home/user
+
+# Add local user binary folder to PATH variable.
+ENV PATH="${PATH}:/home/user/.local/bin"
+SHELL ["/bin/bash", "-c"]
+
+# Upgrade pip and install packages.
+RUN python3 -m pip install --upgrade pip setuptools pathtools promise
 # Install pytorch and submodules.
-RUN pip3 install --ignore-installed torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
+# RUN python3 -m pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
 # Install tynyCUDNN.
-RUN pip3 install "git+https://github.com/NVlabs/tiny-cuda-nn.git#subdirectory=bindings/torch"
+RUN python3 -m pip install "git+https://github.com/NVlabs/tiny-cuda-nn.git#subdirectory=bindings/torch"
 
 # Copy nerfstudio folder and give ownership to user.
-# ADD . /home/user/sdfstudio
-# USER root
-# RUN chown -R user:user /home/user/sdfstudio
-# USER 1000:1000
+ADD . /home/user/sdfstudio
+USER root
+RUN chown -R user:user /home/user/sdfstudio
+USER 1000:1000
 
-# # Change working directory
-# WORKDIR /home/user/sdfstudio
-
-ADD . /sdfstudio
-WORKDIR /sdfstudio
+# Change working directory
+WORKDIR /home/user/sdfstudio
 
 RUN python3 -m pip install -e .
 
-SHELL ["/bin/bash", "-c"]
-
-CMD ns-install-cli && /bin/bash
-
-# RUN ns-install-cli
-# CMD /bin/bash
+# CMD ns-install-cli && /bin/bash
+CMD /bin/bash
